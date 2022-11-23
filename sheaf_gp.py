@@ -22,7 +22,7 @@ from kernels import Sheaf, SheafGGP
 def step_callback(step, variables=None, values=None):
     if step % 1 == 0:
         pred = tf.math.argmax(m.predict_f(tf.cast(np.where(data.test_mask)[0].reshape(-1,1), dtype = tf.float64))[0], axis = 1)
-        print('Epoch = {}, acc = {}'.format(step, 0.01*np.sum(pred == data.y[data.test_mask])))
+        print('Epoch = {}, acc = {:.2f}'.format(step, 0.1*np.sum(pred == data.y[data.test_mask])))
         #print_summary(m)
 
 def optimize_tf(model, step_callback, lr=0.01):
