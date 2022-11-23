@@ -88,6 +88,7 @@ class Sheaf(gpflow.kernels.Kernel):
         X = tf.cast(tf.reshape(X, [-1]), dtype=tf.int32)
         X2 = tf.cast(tf.reshape(X2, [-1]), dtype=tf.int32) if X2 is not None else X
         total_cov = self.variance * tf.linalg.inv(tf.eye(num_nodes, dtype = tf.float64) + self.alpha * self.sheaf_construct(self.sheaf_learner))
+        #total_cov = self.variance * tf.linalg.expm(- self.alpha * self.sheaf_construct(self.sheaf_learner))
         cov = tf.gather(total_cov, X, axis=0)
         cov = tf.gather(cov, X2, axis=1)
         return cov
