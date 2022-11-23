@@ -7,18 +7,6 @@ import tensorflow as tf
 from torch_geometric.datasets import Planetoid
 import matplotlib.pyplot as plt
 
-'''
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-import torch_geometric
-from torch_geometric.datasets import Planetoid
-from torch_geometric.utils import to_dense_adj, to_undirected, remove_self_loops
-from torch_scatter import scatter_add
-import networkx as nx
-'''
-
 dataset = Planetoid(root='data/', name='cora', split='public')
 data = dataset.data
 #Cora  = CoraDataset()
