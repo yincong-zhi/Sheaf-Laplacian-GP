@@ -92,10 +92,10 @@ class Sheaf(gpflow.kernels.Kernel):
         return tf.linalg.diag_part(self.K(X))
 
 class SheafGGP(gpflow.kernels.Kernel):
-    def __init__(self, data, alpha = 1., variance = 1.):
+    def __init__(self, data, alpha = 1.):
         super().__init__()
         self.alpha = gpflow.Parameter(alpha, transform = positive())
-        self.variance = gpflow.Parameter(variance, transform = positive())
+        #self.variance = gpflow.Parameter(variance, transform = positive())
         self.base_kernel = gpflow.kernels.Polynomial()
         self.node_feats = data.x
         self.edge_index = data.edge_index
@@ -124,7 +124,7 @@ class SheafGGP(gpflow.kernels.Kernel):
             source = self.edge_index[0, e].item()
             target = self.edge_index[1, e].item()
             left_index.append(e)
-            right_index.append(edge_to_idx[(target, source)])
+            right_index.append(edge_to_idx[(source, target)])
 
         #left_index = torch.tensor(left_index, dtype=torch.long, device=edge_index.device)
         #right_index = torch.tensor(right_index, dtype=torch.long, device=edge_index.device)
@@ -167,8 +167,9 @@ class SheafGGP(gpflow.kernels.Kernel):
         X = tf.cast(tf.reshape(X, [-1]), dtype=tf.int32)
         X2 = tf.cast(tf.reshape(X2, [-1]), dtype=tf.int32) if X2 is not None else X
         inner_cov = self.base_kernel.K(self.node_feats.numpy())
-        S = self.variance * tf.linalg.inv(tf.eye(self.num_nodes, dtype = tf.float64) + self.alpha * self.sheaf_construct(self.sheaf_learner))
-        #S = self.variance * tf.linalg.expm(- self.alpha * self.sheaf_construct(self.sheaf_learner))
+        S = tf.linalg.inv(tf.eye(self.num_nodes, dtype = tf.float64) + self.alpha * self.sheaf_construct(self.sheaf_learner))
+        #S = tf.linalg.expm(- self.alpha * self.sheaf_construct(self.sheaf_learner))
+        S = tf.eye(self.num_nodes, dtype = tf.float64) - self.alpha * self.sheaf_construct(self.sheaf_learner)
         total_cov = S @ inner_cov @ tf.transpose(S)
         cov = tf.gather(total_cov, X, axis=0)
         cov = tf.gather(cov, X2, axis=1)
