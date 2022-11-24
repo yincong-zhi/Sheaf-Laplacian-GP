@@ -15,7 +15,7 @@ parser.add_argument("--data", default='Cora', type=str, help="Cora, Citeseer, Te
 parser = parser.parse_args()
 
 dataset_name = parser.data
-dataset_path = f'/tmp/{dataset_name}'
+dataset_path = f'data/'
 if dataset_name in ["Cora", "Citeseer", "PubMed"]:
     dataset = datasets.Planetoid(dataset_path, dataset_name)
 elif dataset_name in ["Computers", "Photo"]:
@@ -36,7 +36,12 @@ try:
     data.train_mask, data.val_mask, data.test_mask = data.train_mask[:,0], data.val_mask[:,0], data.test_mask[:,0]
 except:
     pass
+
+from torch_geometric.utils import remove_self_loops
+data.edge_index = remove_self_loops(data.edge_index)[0]
+
 '''
+from torch_geometric.datasets import Planetoid
 dataset = Planetoid(root='data/', name='cora', split='public')
 data = dataset.data
 '''

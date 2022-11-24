@@ -169,7 +169,7 @@ class SheafGGP(gpflow.kernels.Kernel):
         inner_cov = self.base_kernel.K(self.node_feats.numpy())
         S = tf.linalg.inv(tf.eye(self.num_nodes, dtype = tf.float64) + self.alpha * self.sheaf_construct(self.sheaf_learner))
         #S = tf.linalg.expm(- self.alpha * self.sheaf_construct(self.sheaf_learner))
-        S = tf.eye(self.num_nodes, dtype = tf.float64) - self.alpha * self.sheaf_construct(self.sheaf_learner)
+        #S = tf.eye(self.num_nodes, dtype = tf.float64) - self.alpha * self.sheaf_construct(self.sheaf_learner)
         total_cov = S @ inner_cov @ tf.transpose(S)
         cov = tf.gather(total_cov, X, axis=0)
         cov = tf.gather(cov, X2, axis=1)
