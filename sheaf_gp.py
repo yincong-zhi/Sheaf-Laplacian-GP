@@ -12,6 +12,7 @@ from gpflow.utilities import positive, print_summary
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--data", default='Cora', type=str, help="Cora, Citeseer, Texas, Wisconsin, Cornell, Chameleon, Squirrel")
+parser.add_argument("--base_kernel", default='Polynomial', type=str, help="Polynomial, Matern52, Matern32, Matern12, SquaredPolynomial")
 parser = parser.parse_args()
 
 dataset_name = parser.data
@@ -40,6 +41,16 @@ except:
 from torch_geometric.utils import remove_self_loops
 data.edge_index = remove_self_loops(data.edge_index)[0]
 
+if parser.base_kernel == 'Polynomial':
+    base_kernel = gpflow.kernels.Polynomial()
+elif parser.base_kernel == 'Matern12':
+    base_kernel = gpflow.kernels.Matern12()
+elif parser.base_kernel == 'Matern32':
+    base_kernel = gpflow.kernels.Matern32()
+elif parser.base_kernel == 'Matern52':
+    base_kernel = gpflow.kernels.Matern52()
+elif parser.base_kernel == 'SquaredExponential':
+    base_kernel = gpflow.kernels.SquaredExponential()
 '''
 from torch_geometric.datasets import Planetoid
 dataset = Planetoid(root='data/', name='cora', split='public')
@@ -59,7 +70,7 @@ def step_callback(step, variables=None, values=None):
 
 def optimize_tf(model, step_callback, lr=0.01):
     opt = tf.optimizers.Adam(lr=lr)
-    for epoch_idx in range(100):
+    for epoch_idx in range(200):
         with tf.GradientTape(watch_accessed_variables=False) as tape:
             tape.watch(model.trainable_variables)
             loss = model.training_loss()
@@ -68,7 +79,7 @@ def optimize_tf(model, step_callback, lr=0.01):
         step_callback(epoch_idx)
         
 if __name__ == '__main__':
-    kernel = SheafGGP(data)
+    kernel = SheafGGP(data, base_kernel=base_kernel)
     n_class = data.y.numpy().max()+1
     invlink = gpflow.likelihoods.RobustMax(n_class)  # Robustmax inverse link function
     likelihood = gpflow.likelihoods.MultiClass(n_class, invlink=invlink)  # Multiclass likelihood

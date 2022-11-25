@@ -92,11 +92,11 @@ class Sheaf(gpflow.kernels.Kernel):
         return tf.linalg.diag_part(self.K(X))
 
 class SheafGGP(gpflow.kernels.Kernel):
-    def __init__(self, data, alpha = 1.):
+    def __init__(self, data, alpha = 1., base_kernel = gpflow.kernels.Polynomial()):
         super().__init__()
         self.alpha = gpflow.Parameter(alpha, transform = positive())
         #self.variance = gpflow.Parameter(variance, transform = positive())
-        self.base_kernel = gpflow.kernels.Polynomial()
+        self.base_kernel = base_kernel
         self.node_feats = data.x
         self.edge_index = data.edge_index
         self.num_nodes = data.num_nodes
