@@ -13,6 +13,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--data", default='Cora', type=str, help="Cora, Citeseer, Texas, Wisconsin, Cornell, Chameleon, Squirrel")
 parser.add_argument("--base_kernel", default='Polynomial', type=str, help="Polynomial, Matern52, Matern32, Matern12, SquaredPolynomial")
+parser.add_argument("--epoch", default=200, type=int, help="number of epochs")
 parser = parser.parse_args()
 
 dataset_name = parser.data
@@ -65,12 +66,12 @@ def step_callback(step, variables=None, values=None):
     pred = tf.math.argmax(m.predict_f(tf.cast(np.where(data.val_mask)[0].reshape(-1,1), dtype = tf.float64))[0], axis = 1)
     correct = np.sum(pred == data.y[data.val_mask])
     val_acc = 100.*correct/np.sum(data.val_mask.numpy())
-    print('Epoch = {}, val acc = {:.2f}, acc = {:.2f}'.format(step, val_acc, test_acc))
+    print('Epoch = {}, val acc = {:.2f}, test acc = {:.2f}'.format(step, val_acc, test_acc))
     #print_summary(m)
 
 def optimize_tf(model, step_callback, lr=0.01):
     opt = tf.optimizers.Adam(lr=lr)
-    for epoch_idx in range(200):
+    for epoch_idx in range(parser.epoch):
         with tf.GradientTape(watch_accessed_variables=False) as tape:
             tape.watch(model.trainable_variables)
             loss = model.training_loss()
