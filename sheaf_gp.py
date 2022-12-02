@@ -1,19 +1,18 @@
 import numpy as np
-import math
-import itertools
 import scipy as sp
-import random
 import tensorflow as tf
 from torch_geometric import datasets
 import matplotlib.pyplot as plt
 import gpflow
-from gpflow.utilities import positive, print_summary
+from gpflow.utilities import print_summary
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--data", default='Cora', type=str, help="Cora, Citeseer, Texas, Wisconsin, Cornell, Chameleon, Squirrel")
+parser.add_argument("--data", default='Cora', type=str, help="Cora, Citeseer, Texas, Wisconsin, Cornell, Chameleon, Squirrel, Actor")
 parser.add_argument("--base_kernel", default='Polynomial', type=str, help="Polynomial, Matern52, Matern32, Matern12, SquaredPolynomial")
 parser.add_argument("--epoch", default=200, type=int, help="number of epochs")
+parser.add_argument("--lr", default=0.1, type=float, help="adam learn rate")
+
 parser = parser.parse_args()
 
 dataset_name = parser.data
@@ -52,12 +51,8 @@ elif parser.base_kernel == 'Matern52':
     base_kernel = gpflow.kernels.Matern52()
 elif parser.base_kernel == 'SquaredExponential':
     base_kernel = gpflow.kernels.SquaredExponential()
-'''
-from torch_geometric.datasets import Planetoid
-dataset = Planetoid(root='data/', name='cora', split='public')
-data = dataset.data
-'''
-from kernels import Sheaf, SheafGGP
+
+from kernels import SheafGGP
 
 def step_callback(step, variables=None, values=None):
     pred = tf.math.argmax(m.predict_f(tf.cast(np.where(data.test_mask)[0].reshape(-1,1), dtype = tf.float64))[0], axis = 1)
@@ -66,11 +61,12 @@ def step_callback(step, variables=None, values=None):
     pred = tf.math.argmax(m.predict_f(tf.cast(np.where(data.val_mask)[0].reshape(-1,1), dtype = tf.float64))[0], axis = 1)
     correct = np.sum(pred == data.y[data.val_mask])
     val_acc = 100.*correct/np.sum(data.val_mask.numpy())
-    print('Epoch = {}, val acc = {:.2f}, test acc = {:.2f}'.format(step, val_acc, test_acc))
+    print('Epoch = {}, elbo = {:.2f}, val acc = {:.2f}, test acc = {:.2f}'.format(step, m.elbo().numpy(), val_acc, test_acc))
     #print_summary(m)
 
 def optimize_tf(model, step_callback, lr=0.01):
     opt = tf.optimizers.Adam(lr=lr)
+    elbos = []
     for epoch_idx in range(parser.epoch):
         with tf.GradientTape(watch_accessed_variables=False) as tape:
             tape.watch(model.trainable_variables)
@@ -78,6 +74,8 @@ def optimize_tf(model, step_callback, lr=0.01):
             gradients = tape.gradient(loss, model.trainable_variables)
         opt.apply_gradients(zip(gradients, model.trainable_variables))
         step_callback(epoch_idx)
+        elbos.append(model.elbo())
+    #return elbos
         
 if __name__ == '__main__':
     kernel = SheafGGP(data, base_kernel=base_kernel)
@@ -92,4 +90,4 @@ if __name__ == '__main__':
     )
     #print_summary(m)
 
-    optimize_tf(m, step_callback, lr = 0.1)
+    optimize_tf(m, step_callback, lr = parser.lr)

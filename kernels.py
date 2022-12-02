@@ -1,13 +1,8 @@
 import numpy as np
-import math
-import itertools
-import scipy as sp
-import random
 import tensorflow as tf
-from torch_geometric.datasets import Planetoid
 import matplotlib.pyplot as plt
 import gpflow
-from gpflow.utilities import positive, print_summary
+from gpflow.utilities import positive
 
 class SheafGGP(gpflow.kernels.Kernel):
     def __init__(self, data, alpha = 1., base_kernel = gpflow.kernels.Polynomial()):
