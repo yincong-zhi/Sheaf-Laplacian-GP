@@ -12,6 +12,7 @@ parser.add_argument("--data", default='Cora', type=str, help="Cora, Citeseer, Te
 parser.add_argument("--base_kernel", default='Polynomial', type=str, help="Polynomial, Matern52, Matern32, Matern12, SquaredPolynomial")
 parser.add_argument("--epoch", default=200, type=int, help="number of epochs")
 parser.add_argument("--lr", default=0.1, type=float, help="adam learn rate")
+parser.add_argument("--act", default='relu', type=str, help="activation function on linear layer to learn the sheaf")
 
 parser = parser.parse_args()
 
@@ -78,7 +79,7 @@ def optimize_tf(model, step_callback, lr=0.01):
     #return elbos
         
 if __name__ == '__main__':
-    kernel = SheafGGP(data, base_kernel=base_kernel)
+    kernel = SheafGGP(data, base_kernel=base_kernel, activation=parser.act)
     n_class = data.y.numpy().max()+1
     invlink = gpflow.likelihoods.RobustMax(n_class)  # Robustmax inverse link function
     likelihood = gpflow.likelihoods.MultiClass(n_class, invlink=invlink)  # Multiclass likelihood

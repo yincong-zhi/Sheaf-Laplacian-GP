@@ -5,7 +5,7 @@ import gpflow
 from gpflow.utilities import positive
 
 class SheafGGP(gpflow.kernels.Kernel):
-    def __init__(self, data, alpha = 1., base_kernel = gpflow.kernels.Polynomial()):
+    def __init__(self, data, alpha = 1., base_kernel = gpflow.kernels.Polynomial(), activation = 'relu'):
         super().__init__()
         self.alpha = gpflow.Parameter(alpha, transform = positive())
         #self.variance = gpflow.Parameter(variance, transform = positive())
@@ -19,7 +19,7 @@ class SheafGGP(gpflow.kernels.Kernel):
         initializer = None#tf.keras.initializers.Ones()
         sheaf_learner = tf.keras.models.Sequential()
         sheaf_learner.add(tf.keras.Input(shape=(2*input_dim,)))
-        sheaf_learner.add(tf.keras.layers.Dense(1, activation='tanh', kernel_initializer=initializer))
+        sheaf_learner.add(tf.keras.layers.Dense(1, activation=activation, kernel_initializer=initializer))
         self.sheaf_learner = sheaf_learner
     
     def sheaf_construct(self, sheaf_learner = None):
@@ -81,8 +81,8 @@ class SheafGGP(gpflow.kernels.Kernel):
         X = tf.cast(tf.reshape(X, [-1]), dtype=tf.int32)
         X2 = tf.cast(tf.reshape(X2, [-1]), dtype=tf.int32) if X2 is not None else X
         inner_cov = self.base_kernel.K(self.node_feats.numpy())
-        S = tf.linalg.inv(tf.eye(self.num_nodes, dtype = tf.float64) + self.alpha * tf.sparse.to_dense(self.sheaf_construct(self.sheaf_learner)))
-        #S = tf.linalg.expm(- self.alpha * self.sheaf_construct(self.sheaf_learner))
+        #S = tf.linalg.inv(tf.eye(self.num_nodes, dtype = tf.float64) + self.alpha * tf.sparse.to_dense(self.sheaf_construct(self.sheaf_learner)))
+        S = tf.linalg.expm(- self.alpha * tf.sparse.to_dense(self.sheaf_construct(self.sheaf_learner)))
         #S = tf.eye(self.num_nodes, dtype = tf.float64) - self.alpha * self.sheaf_construct(self.sheaf_learner)
         total_cov = S @ inner_cov @ tf.transpose(S)
         cov = tf.gather(total_cov, X, axis=0)
