@@ -52,7 +52,7 @@ elif parser.base_kernel == 'Matern52':
 elif parser.base_kernel == 'SquaredExponential':
     base_kernel = gpflow.kernels.SquaredExponential()
 
-from kernels import SheafGGP
+from kernels import SheafGGP, SheafChebyshev
 
 def step_callback(step, variables=None, values=None):
     pred = tf.math.argmax(m.predict_f(tf.cast(np.where(data.test_mask)[0].reshape(-1,1), dtype = tf.float64))[0], axis = 1)
@@ -78,7 +78,8 @@ def optimize_tf(model, step_callback, lr=0.01):
     #return elbos
         
 if __name__ == '__main__':
-    kernel = SheafGGP(data, base_kernel=base_kernel)
+    #kernel = SheafGGP(data, base_kernel=base_kernel)
+    kernel = SheafChebyshev(None, 5, data.x, data.edge_index, base_kernel)
     n_class = data.y.numpy().max()+1
     invlink = gpflow.likelihoods.RobustMax(n_class)  # Robustmax inverse link function
     likelihood = gpflow.likelihoods.MultiClass(n_class, invlink=invlink)  # Multiclass likelihood
