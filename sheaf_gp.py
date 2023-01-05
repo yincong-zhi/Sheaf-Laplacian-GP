@@ -12,6 +12,8 @@ parser.add_argument("--data", default='Cora', type=str, help="Cora, Citeseer, Te
 parser.add_argument("--base_kernel", default='Polynomial', type=str, help="Polynomial, Matern52, Matern32, Matern12, SquaredPolynomial")
 parser.add_argument("--epoch", default=200, type=int, help="number of epochs")
 parser.add_argument("--lr", default=0.1, type=float, help="adam learn rate")
+parser.add_argument('--approx', type=bool, default=False, help='default is exact kernel, True for chebyshev approximation')
+parser.add_argument('--train_on_val', type=bool, default=False, help='if True, validation set is included in the training')
 
 parser = parser.parse_args()
 
@@ -38,6 +40,9 @@ try:
 except:
     pass
 
+if parser.train_on_val:
+    data.train_mask += data.val_mask
+    
 from torch_geometric.utils import remove_self_loops
 data.edge_index = remove_self_loops(data.edge_index)[0]
 
@@ -78,8 +83,10 @@ def optimize_tf(model, step_callback, lr=0.01):
     #return elbos
         
 if __name__ == '__main__':
-    #kernel = SheafGGP(data, base_kernel=base_kernel)
-    kernel = SheafChebyshev(None, 5, data.x, data.edge_index, base_kernel)
+    if parser.approx:
+        kernel = SheafChebyshev(7, data.x, data.edge_index, base_kernel)
+    else:
+        kernel = SheafGGP(data, base_kernel=base_kernel)
     n_class = data.y.numpy().max()+1
     invlink = gpflow.likelihoods.RobustMax(n_class)  # Robustmax inverse link function
     likelihood = gpflow.likelihoods.MultiClass(n_class, invlink=invlink)  # Multiclass likelihood

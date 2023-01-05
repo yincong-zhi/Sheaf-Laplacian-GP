@@ -19,7 +19,7 @@ class SheafGGP(gpflow.kernels.Kernel):
         initializer = None#tf.keras.initializers.Ones()
         sheaf_learner = tf.keras.models.Sequential()
         sheaf_learner.add(tf.keras.Input(shape=(2*input_dim,)))
-        sheaf_learner.add(tf.keras.layers.Dense(1, activation='tanh', kernel_initializer=initializer))
+        sheaf_learner.add(tf.keras.layers.Dense(1, activation='relu', kernel_initializer=initializer))
         self.sheaf_learner = sheaf_learner
     
     def sheaf_construct(self, sheaf_learner = None):
@@ -114,7 +114,7 @@ def chebyshev_polynomial(mat, coefficients):
     return polynomial
 
 class SheafChebyshev(gpflow.kernels.base.Kernel):
-    def __init__(self, normalized_L, poly_degree, node_feats, edge_index, base_kernel=None):
+    def __init__(self, poly_degree, node_feats, edge_index, base_kernel=None):
         super().__init__()
         self.num_nodes = node_feats.shape[0]
         #self.normalized_L = tf.cast(normalized_L, tf.float64) - tf.eye(self.num_nodes, dtype=tf.float64)
