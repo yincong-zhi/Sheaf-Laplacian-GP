@@ -13,7 +13,9 @@ parser.add_argument("--base_kernel", default='Polynomial', type=str, help="Polyn
 parser.add_argument("--epoch", default=200, type=int, help="number of epochs")
 parser.add_argument("--lr", default=0.1, type=float, help="adam learn rate")
 parser.add_argument('--approx', type=bool, default=False, help='default is exact kernel, True for chebyshev approximation')
+parser.add_argument('--approx_deg', type=int, default=7, help='degree of chebyshev approximation, only used when --approx=True')
 parser.add_argument('--train_on_val', type=bool, default=False, help='if True, validation set is included in the training')
+parser.add_argument('--split', type=int, default=0, help='data split if there are multiple')
 
 parser = parser.parse_args()
 
@@ -36,7 +38,7 @@ data = dataset.data
 # use first mask if there are multiple
 try:
     data.train_mask.size(1)
-    data.train_mask, data.val_mask, data.test_mask = data.train_mask[:,0], data.val_mask[:,0], data.test_mask[:,0]
+    data.train_mask, data.val_mask, data.test_mask = data.train_mask[:,parser.split], data.val_mask[:,parser.split], data.test_mask[:,parser.split]
 except:
     pass
 
@@ -84,7 +86,7 @@ def optimize_tf(model, step_callback, lr=0.01):
         
 if __name__ == '__main__':
     if parser.approx:
-        kernel = SheafChebyshev(7, data.x, data.edge_index, base_kernel)
+        kernel = SheafChebyshev(parser.approx_deg, data.x, data.edge_index, base_kernel)
     else:
         kernel = SheafGGP(data, base_kernel=base_kernel)
     n_class = data.y.numpy().max()+1
