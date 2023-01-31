@@ -1,6 +1,7 @@
 import numpy as np
 import scipy as sp
 import tensorflow as tf
+import torch
 from torch_geometric import datasets
 import matplotlib.pyplot as plt
 import gpflow
@@ -16,46 +17,62 @@ parser.add_argument('--approx', type=bool, default=False, help='default is exact
 parser.add_argument('--approx_deg', type=int, default=7, help='degree of chebyshev approximation, only used when --approx=True')
 parser.add_argument('--train_on_val', type=bool, default=False, help='if True, validation set is included in the training')
 parser.add_argument('--split', type=int, default=0, help='data split if there are multiple')
-parser.add_argument('--setting', type=str, default='transductive', help='transductive - TGGP split or SNN - sheaf neural network split')
+parser.add_argument('--setting', type=str, default='SNN', help='transductive - TGGP split or SNN - sheaf neural network split')
 
 parser = parser.parse_args()
 
-if parser.setting == 'transductive':
-    dataset_name = parser.data
-    dataset_path = f'data/'
-    if dataset_name in ["Cora", "Citeseer", "PubMed"]:
-        dataset = datasets.Planetoid(dataset_path, dataset_name)
-    elif dataset_name in ["Computers", "Photo"]:
-        dataset = datasets.Amazon(dataset_path, dataset_name)
-    elif dataset_name in ["Physics", "CS"]:
-        dataset = datasets.Coauthor(dataset_path, dataset_name)
-    elif dataset_name in ["Texas", "Cornell", "Wisconsin"]:
-        dataset = datasets.WebKB(dataset_path, dataset_name)
-    elif dataset_name in ["Chameleon", "Squirrel"]:
-        dataset = datasets.WikipediaNetwork(dataset_path, dataset_name)
-    elif dataset_name in ["Actor"]:
-        dataset = datasets.Actor(dataset_path, dataset_name)
-    data = dataset.data
+dataset_name = parser.data
+dataset_path = f'data/'
+if dataset_name in ["Cora", "Citeseer", "PubMed"]:
+    dataset = datasets.Planetoid(dataset_path, dataset_name)
+elif dataset_name in ["Computers", "Photo"]:
+    dataset = datasets.Amazon(dataset_path, dataset_name)
+elif dataset_name in ["Physics", "CS"]:
+    dataset = datasets.Coauthor(dataset_path, dataset_name)
+elif dataset_name in ["Texas", "Cornell", "Wisconsin"]:
+    dataset = datasets.WebKB(dataset_path, dataset_name)
+elif dataset_name in ["Chameleon", "Squirrel"]:
+    dataset = datasets.WikipediaNetwork(dataset_path, dataset_name)
+elif dataset_name in ["Actor"]:
+    dataset = datasets.Actor(dataset_path, dataset_name)
+data = dataset.data
 
-    # use first mask if there are multiple
-    try:
-        data.train_mask.size(1)
-        data.train_mask, data.val_mask, data.test_mask = data.train_mask[:,parser.split], data.val_mask[:,parser.split], data.test_mask[:,parser.split]
-    except:
-        pass
+# use first mask if there are multiple
+try:
+    data.train_mask.size(1)
+    data.train_mask, data.val_mask, data.test_mask = data.train_mask[:,parser.split], data.val_mask[:,parser.split], data.test_mask[:,parser.split]
+except:
+    pass
 
-    if parser.train_on_val:
-        data.train_mask += data.val_mask
-        
-    from torch_geometric.utils import remove_self_loops
-    data.edge_index = remove_self_loops(data.edge_index)[0]
+if parser.train_on_val:
+    data.train_mask += data.val_mask
     
-elif parser.setting == 'SNN':
-    from SNNsplit import get_dataset, get_fixed_splits
+from torch_geometric.utils import remove_self_loops
+data.edge_index = remove_self_loops(data.edge_index)[0]
 
-    dataset = get_dataset(parser.data.lower())
-    data = dataset[0]
-    #data = get_fixed_splits(data, parser.data.lower(), parser.split)
+def get_fixed_splits(data, dataset_name, seed):
+    with np.load(f'splits/{dataset_name}_split_0.6_0.2_{seed}.npz') as splits_file:
+        train_mask = splits_file['train_mask']
+        val_mask = splits_file['val_mask']
+        test_mask = splits_file['test_mask']
+
+    data.train_mask = torch.tensor(train_mask, dtype=torch.bool)
+    data.val_mask = torch.tensor(val_mask, dtype=torch.bool)
+    data.test_mask = torch.tensor(test_mask, dtype=torch.bool)
+    '''
+    if dataset_name in {'cora', 'citeseer', 'pubmed'}:
+        data.train_mask[data.non_valid_samples] = False
+        data.test_mask[data.non_valid_samples] = False
+        data.val_mask[data.non_valid_samples] = False
+        print("Non zero masks", torch.count_nonzero(data.train_mask + data.val_mask + data.test_mask))
+        print("Nodes", data.x.size(0))
+        print("Non valid", len(data.non_valid_samples))
+    else:
+        assert torch.count_nonzero(data.train_mask + data.val_mask + data.test_mask) == data.x.size(0)
+    '''
+    return data
+
+#data = get_fixed_splits(data, parser.data.lower(), parser.split)
 
 if parser.base_kernel == 'Polynomial':
     base_kernel = gpflow.kernels.Polynomial()
@@ -77,7 +94,7 @@ def step_callback(step, variables=None, values=None):
     pred = tf.math.argmax(m.predict_f(tf.cast(np.where(data.test_mask)[0].reshape(-1,1), dtype = tf.float64))[0], axis = 1)
     correct = np.sum(pred == data.y[data.test_mask])
     test_acc = 100.*correct/np.sum(data.test_mask.numpy())
-    if step % 20 == 0:
+    if step % 1 == 0:
         pred = tf.math.argmax(m.predict_f(tf.cast(np.where(data.val_mask)[0].reshape(-1,1), dtype = tf.float64))[0], axis = 1)
         correct = np.sum(pred == data.y[data.val_mask])
         val_acc = 100.*correct/np.sum(data.val_mask.numpy())
@@ -101,24 +118,30 @@ def optimize_tf(model, step_callback, lr=0.01):
 if __name__ == '__main__':
     test_accs10 = []
     for split in range(10):
-        test_accs = []
+        print('Split', split)
         data = get_fixed_splits(data, parser.data.lower(), split)
-        
-        if parser.approx:
-            kernel = SheafChebyshev(parser.approx_deg, data.x, data.edge_index, base_kernel)
-        else:
-            kernel = SheafGGP(data, base_kernel=base_kernel)
-        n_class = data.y.numpy().max()+1
-        invlink = gpflow.likelihoods.RobustMax(n_class)  # Robustmax inverse link function
-        likelihood = gpflow.likelihoods.MultiClass(n_class, invlink=invlink)  # Multiclass likelihood
-        m = gpflow.models.VGP(
-            (tf.cast(np.where(data.train_mask)[0].reshape(-1,1), dtype = tf.float64), tf.reshape(data.y[data.train_mask], (-1,1))),
-            likelihood=likelihood, 
-            kernel=kernel, 
-            num_latent_gps=n_class
-        )
-        #print_summary(m)
+        if parser.train_on_val:
+            data.train_mask += data.val_mask
+        split_acc = []
+        for _ in range(5):
+            test_accs = []
+            if parser.approx:
+                kernel = SheafChebyshev(parser.approx_deg, data.x, data.edge_index, base_kernel)
+            else:
+                kernel = SheafGGP(data, base_kernel=base_kernel)
+            n_class = data.y.numpy().max()+1
+            invlink = gpflow.likelihoods.RobustMax(n_class)  # Robustmax inverse link function
+            likelihood = gpflow.likelihoods.MultiClass(n_class, invlink=invlink)  # Multiclass likelihood
+            m = gpflow.models.VGP(
+                (tf.cast(np.where(data.train_mask)[0].reshape(-1,1), dtype = tf.float64), tf.reshape(data.y[data.train_mask], (-1,1))),
+                likelihood=likelihood, 
+                kernel=kernel, 
+                num_latent_gps=n_class
+            )
+            #print_summary(m)
+            optimize_tf(m, step_callback, lr = parser.lr)
+            split_acc.append(max(test_accs))
 
-        optimize_tf(m, step_callback, lr = parser.lr)
-        test_accs10.append(max(test_accs))
+        test_accs10.append(max(split_acc))
+    print(test_accs10)
     print('Mean:', np.mean(test_accs10), 'sd', np.std(test_accs10))
