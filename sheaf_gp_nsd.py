@@ -17,7 +17,7 @@ parser.add_argument('--approx', type=bool, default=False, help='default is exact
 parser.add_argument('--approx_deg', type=int, default=7, help='degree of chebyshev approximation, only used when --approx=True')
 parser.add_argument('--train_on_val', type=bool, default=False, help='if True, validation set is included in the training')
 parser.add_argument('--split', type=int, default=0, help='data split if there are multiple')
-parser.add_argument('--setting', type=str, default='SNN', help='transductive - TGGP split or SNN - sheaf neural network split')
+parser.add_argument('--act', type=str, default='relu', help='relu, tanh')
 
 parser = parser.parse_args()
 
@@ -85,7 +85,7 @@ elif parser.base_kernel == 'Matern52':
 elif parser.base_kernel == 'SquaredExponential':
     base_kernel = gpflow.kernels.SquaredExponential()
 
-from kernels import SheafGGP, SheafChebyshev
+from kernels import SheafGGP, SheafChebyshev, SheafGGP_t
 
 #global top_test_acc
 test_accs = []
@@ -94,7 +94,7 @@ def step_callback(step, variables=None, values=None):
     pred = tf.math.argmax(m.predict_f(tf.cast(np.where(data.test_mask)[0].reshape(-1,1), dtype = tf.float64))[0], axis = 1)
     correct = np.sum(pred == data.y[data.test_mask])
     test_acc = 100.*correct/np.sum(data.test_mask.numpy())
-    if step % 1 == 0:
+    if step % 20 == 0:
         pred = tf.math.argmax(m.predict_f(tf.cast(np.where(data.val_mask)[0].reshape(-1,1), dtype = tf.float64))[0], axis = 1)
         correct = np.sum(pred == data.y[data.val_mask])
         val_acc = 100.*correct/np.sum(data.val_mask.numpy())
@@ -123,12 +123,14 @@ if __name__ == '__main__':
         if parser.train_on_val:
             data.train_mask += data.val_mask
         split_acc = []
-        for _ in range(5):
+        for _ in range(3):
             test_accs = []
             if parser.approx:
                 kernel = SheafChebyshev(parser.approx_deg, data.x, data.edge_index, base_kernel)
-            else:
+            elif parser.act == 'relu':
                 kernel = SheafGGP(data, base_kernel=base_kernel)
+            elif parser.act == 'tanh':
+                kernel = SheafGGP_t(data, base_kernel=base_kernel)
             n_class = data.y.numpy().max()+1
             invlink = gpflow.likelihoods.RobustMax(n_class)  # Robustmax inverse link function
             likelihood = gpflow.likelihoods.MultiClass(n_class, invlink=invlink)  # Multiclass likelihood
