@@ -33,7 +33,7 @@ elif dataset_name in ["Texas", "Cornell", "Wisconsin"]:
     dataset = datasets.WebKB(dataset_path, dataset_name)
 elif dataset_name in ["Chameleon", "Squirrel"]:
     dataset = datasets.WikipediaNetwork(dataset_path, dataset_name)
-elif dataset_name in ["Actor"]:
+elif dataset_name in ["Actor", 'Film']:
     dataset = datasets.Actor(dataset_path, dataset_name)
 data = dataset.data
 
@@ -117,7 +117,7 @@ def optimize_tf(model, step_callback, lr=0.01):
         
 if __name__ == '__main__':
     test_accs10 = []
-    for split in range(10):
+    for split in range(0,10):
         print('Split', split)
         data = get_fixed_splits(data, parser.data.lower(), split)
         if parser.train_on_val:
@@ -145,5 +145,6 @@ if __name__ == '__main__':
             split_acc.append(max(test_accs))
 
         test_accs10.append(max(split_acc))
+        print('split = {}, acc = {}'.format(split, max(split_acc)))
     print(test_accs10)
     print('Mean:', np.mean(test_accs10), 'sd', np.std(test_accs10))
