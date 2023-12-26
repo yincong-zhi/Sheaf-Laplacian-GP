@@ -1,7 +1,9 @@
-# Learning Sheaf Laplacian for Graph GP
+# Sheaf Laplacian Gaussian Processes
 
-Main implementation using the same splits as Transductive Kernels for Gaussian Processes on Graphs <code>sheaf_gp.py</code>
+This repository implements learning a Sheaf Laplacian within a kernel function of a Gaussian process.
 
-Split from Neural Sheaf Diffusion can be found in <code>sheaf_gp_nsd.py</code>, raw files are found in <code>splits</code> folder
+The main implementation using the same splits as [Transductive Kernels for Gaussian Processes on Graphs](https://arxiv.org/abs/2211.15322) can be found in <code>sheaf_gp.py</code>.
 
-Various kernels can be found in <code>kernels.py</code>
+Split from [Neural Sheaf Diffusion](https://openreview.net/forum?id=vbPsD-BhOZ) written in <code>sheaf_gp_nsd.py</code>, the raw files are found in the <code>splits</code> folder.
+
+Lastly, various kernels can be found in <code>kernels.py</code>.
